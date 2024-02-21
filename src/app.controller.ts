@@ -18,7 +18,7 @@ export class AppController {
 
   @Post("/slots/allocate")
   async allocateSlot(@Body() allocateSlotDto: AllocateSlotDto): Promise<any> {
-    try {
+    try {      
       const slotNumber = await this.appService.allocateSlot(allocateSlotDto.carType);
       return { success: true, data: { slotNumber } };
     } catch (error) {
@@ -26,7 +26,7 @@ export class AppController {
     }
   }
 
-  @Delete("/slots/deallocate/:slotNumber")
+  @Delete("/slots/deallocate")
   async deallocateSlot(@Query('slotNumber') slotNumber: string): Promise<any> {
     try {
       await this.appService.deallocateSlot(slotNumber);
