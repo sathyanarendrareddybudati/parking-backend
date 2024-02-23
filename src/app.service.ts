@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ParkingLot, Slot, Floor } from './app.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MongoRepository, MoreThan } from 'typeorm';
@@ -31,15 +31,16 @@ export class AppService {
 
       await this.floorRepository.save(floor);
 
-      for (let i = 0; i < floorConfig.length; i++) {
+      for (const config of floorConfig) {
         const slot = new Slot();
-        slot.size = floorConfig[i];
-        slot.no_of_slots = 100;
+        slot.size = (config as any).size;
+        slot.no_of_slots = (config as any).spaces;
         slot.floor = floor;
 
         await this.slotRepository.save(slot);
       }
     }
+
     return savedParkingLot;
   }
 
@@ -87,24 +88,31 @@ export class AppService {
   }
 
   async getAvailableSlots(): Promise<any> {
-    
-    const parkingLot = await this.parkingLotRepository.find()
-    
-    if (!parkingLot) {
-      throw new NotFoundException("Parking lot not found");
+    try {
+      const parkingLots = await this.parkingLotRepository.find();
+
+      if (!parkingLots || parkingLots.length === 0) {
+        throw new NotFoundException("Parking lot not found");
+      }
+
+      const result = await Promise.all(parkingLots.map(async (parkingLot) => {
+        const floors = await this.floorRepository.find({ where: { parking_lot_id: parkingLot } });
+        const availableSlots = [];
+
+        for (const floor of floors) {
+          const slots = await this.slotRepository.find({ where: { floor: floor, no_of_slots: MoreThan(0) } });
+          availableSlots.push({
+            floorNumber: floor.floorNumber,
+            slots: slots.map(s => ({ id: s.slot_id, size: s.size, available: s.no_of_slots })),
+          });
+        }
+
+        return { parkingLotName: parkingLot.name, floors: availableSlots };
+      }));
+
+      return { success: true, data: result };
+    } catch (error) {
+      throw new BadRequestException(error.message);
     }
-
-    const floors = await this.floorRepository.find({ where: { parking_lot_id: parkingLot } });
-    const availableSlots = [];
-
-    for (const floor of floors) {
-      const slots = await this.slotRepository.find({ where: { floor: floor, no_of_slots: MoreThan(0) } });
-      availableSlots.push({
-        floorNumber: floor.floorNumber,
-        slots: slots.map(s => ({ id: s.slot_id, size: s.size, available: s.no_of_slots })),
-      });
-    }
-
-    return availableSlots;
   }
 }
