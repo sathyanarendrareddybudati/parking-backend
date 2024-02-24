@@ -12,7 +12,7 @@ import { ParkingLot, Floor, Slot } from './app.entity';
       useFactory: async (configService: ConfigService) => ({
         type: "mysql",
         host : configService.get("LOCAL_DB_HOST"),
-        port: 3306,
+        port: 18815,
         username: configService.get("LOCAL_DB_USER"),
         password: configService.get("LOCAL_DB_PASSWORD"),
         database: configService.get("LOCAL_DB_NAME"),
